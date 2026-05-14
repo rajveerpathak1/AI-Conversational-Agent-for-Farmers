@@ -1,38 +1,53 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-    <title>Agri AI Assistant</title>
+
+    <title>AI Farmer Assistant</title>
+
 </head>
+
 <body>
 
-<h1>AI Agriculture Assistant</h1>
+    <h1>AI Farmer Assistant</h1>
 
-<input type="text" id="message">
-<button onclick="sendMessage()">Send</button>
+    <input type="text" id="message">
 
-<div id="chatbox"></div>
+    <button onclick="sendMessage()">
+        Send
+    </button>
+
+    <div id="chatbox"></div>
 
 <script>
+
 async function sendMessage() {
 
-    const message = document.getElementById("message").value;
+    const message =
+        document.getElementById("message").value;
 
     const response = await fetch("/chat", {
+
         method: "POST",
+
         headers: {
             "Content-Type": "application/json"
         },
+
         body: JSON.stringify({
             message: message
         })
+
     });
 
     const data = await response.json();
 
-    document.getElementById("chatbox").innerHTML +=
-        `<p><b>You:</b> ${message}</p>
-         <p><b>Bot:</b> ${data.response}</p>`;
+    document.getElementById("chatbox").innerHTML += `
+        <p><b>You:</b> ${message}</p>
+        <p><b>Bot:</b> ${data.response}</p>
+    `;
 }
+
 </script>
 
 </body>

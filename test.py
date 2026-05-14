@@ -2,8 +2,17 @@ from chatbot.chain import ask_question
 
 while True:
 
-    question = input("Ask: ")
+    query = input("\nAsk: ")
 
-    response = ask_question(question)
+    if query.lower() == "exit":
+        break
 
-    print("\nBot:", response)
+    response = ask_question(query)
+
+    print("\nBot:\n")
+    print(response["answer"])
+
+    print("\nSources:")
+
+    for source in response["sources"]:
+        print("-", source)

@@ -17,13 +17,18 @@ for file in os.listdir(folder_path):
             os.path.join(folder_path, file)
         )
 
-        docs.extend(loader.load())
+        loaded_docs = loader.load()
+
+        for doc in loaded_docs:
+            doc.metadata["source"] = file
+
+        docs.extend(loaded_docs)
 
 print(f"Loaded {len(docs)} pages")
 
 splitter = RecursiveCharacterTextSplitter(
-    chunk_size=500,
-    chunk_overlap=50
+    chunk_size=700,
+    chunk_overlap=120
 )
 
 split_docs = splitter.split_documents(docs)
