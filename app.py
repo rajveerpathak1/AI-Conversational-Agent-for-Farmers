@@ -21,7 +21,7 @@ def chat():
     response = ask_question(user_message)
 
     return jsonify({
-        "response": response
+        "response": response["answer"]
     })
 
 if __name__ == "__main__":

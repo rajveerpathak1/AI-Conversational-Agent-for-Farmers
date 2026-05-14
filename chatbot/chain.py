@@ -68,7 +68,8 @@ llm = ChatGroq(
 
 memory = ConversationBufferMemory(
     memory_key="chat_history",
-    return_messages=True
+    return_messages=True,
+    output_key="answer"
 )
 
 qa_chain = ConversationalRetrievalChain.from_llm(
