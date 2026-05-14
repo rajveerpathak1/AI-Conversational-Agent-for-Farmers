@@ -1,8 +1,16 @@
-from langchain_community.llms import Ollama
+import os
+
+from dotenv import load_dotenv
+
+from langchain.memory.buffer import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
-from langchain.memory import ConversationBufferMemory
-from langchain.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
+
+from langchain_community.vectorstores import FAISS
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
+from langchain_groq import ChatGroq
+
+load_dotenv()
 
 embeddings = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
@@ -14,7 +22,12 @@ vectorstore = FAISS.load_local(
     allow_dangerous_deserialization=True
 )
 
-llm = Ollama(model="llama3")
+retriever = vectorstore.as_retriever()
+
+llm = ChatGroq(
+    groq_api_key=os.getenv("GROQ_API_KEY"),
+    model_name="llama3-8b-8192"
+)
 
 memory = ConversationBufferMemory(
     memory_key="chat_history",
@@ -23,10 +36,14 @@ memory = ConversationBufferMemory(
 
 qa_chain = ConversationalRetrievalChain.from_llm(
     llm=llm,
-    retriever=vectorstore.as_retriever(),
+    retriever=retriever,
     memory=memory
 )
 
 def ask_question(query):
-    response = qa_chain.invoke({"question": query})
+
+    response = qa_chain.invoke({
+        "question": query
+    })
+
     return response["answer"]

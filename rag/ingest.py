@@ -1,17 +1,25 @@
-from langchain.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import FAISS
-from langchain.embeddings import HuggingFaceEmbeddings
 import os
+
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
 
 docs = []
 
 folder_path = "data/agriculture_docs"
 
 for file in os.listdir(folder_path):
+
     if file.endswith(".pdf"):
-        loader = PyPDFLoader(os.path.join(folder_path, file))
+
+        loader = PyPDFLoader(
+            os.path.join(folder_path, file)
+        )
+
         docs.extend(loader.load())
+
+print(f"Loaded {len(docs)} pages")
 
 splitter = RecursiveCharacterTextSplitter(
     chunk_size=500,
@@ -20,11 +28,16 @@ splitter = RecursiveCharacterTextSplitter(
 
 split_docs = splitter.split_documents(docs)
 
+print(f"Created {len(split_docs)} chunks")
+
 embeddings = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
-vectorstore = FAISS.from_documents(split_docs, embeddings)
+vectorstore = FAISS.from_documents(
+    split_docs,
+    embeddings
+)
 
 vectorstore.save_local("vectorstore")
 
