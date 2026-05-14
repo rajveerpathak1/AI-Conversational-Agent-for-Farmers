@@ -1,21 +1,9 @@
-from flask import Flask, render_template, request, jsonify
-from chatbot.chain import ask_question
+from flask import Flask
+from routes.chat_routes import chat_bp
 
 app = Flask(__name__)
 
-@app.route("/")
-def home():
-    return render_template("index.html")
-
-@app.route("/chat", methods=["POST"])
-def chat():
-    user_message = request.json["message"]
-
-    response = ask_question(user_message)
-
-    return jsonify({
-        "response": response
-    })
+app.register_blueprint(chat_bp)
 
 if __name__ == "__main__":
     app.run(debug=True)
