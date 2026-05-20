@@ -4,16 +4,23 @@
 <head>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>AI Farmer Assistant</title>
 
     <style>
 
         * {
+
             margin: 0;
             padding: 0;
+
             box-sizing: border-box;
+
             font-family: Arial, sans-serif;
         }
 
@@ -22,6 +29,7 @@
             background: #f4f7f2;
 
             display: flex;
+
             justify-content: center;
             align-items: center;
 
@@ -31,7 +39,8 @@
         .chat-container {
 
             width: 90%;
-            max-width: 800px;
+
+            max-width: 850px;
 
             height: 90vh;
 
@@ -40,6 +49,7 @@
             border-radius: 15px;
 
             display: flex;
+
             flex-direction: column;
 
             box-shadow: 0 4px 20px rgba(0,0,0,0.1);
@@ -58,6 +68,7 @@
             text-align: center;
 
             font-size: 24px;
+
             font-weight: bold;
         }
 
@@ -70,11 +81,14 @@
             overflow-y: auto;
 
             display: flex;
+
             flex-direction: column;
 
             gap: 15px;
 
             background: #f9faf8;
+
+            scroll-behavior: smooth;
         }
 
         .message {
@@ -85,7 +99,7 @@
 
             border-radius: 12px;
 
-            line-height: 1.5;
+            line-height: 1.6;
 
             word-wrap: break-word;
         }
@@ -106,6 +120,38 @@
             background: #e5e7eb;
 
             color: black;
+        }
+
+        .typing {
+
+            font-style: italic;
+
+            color: gray;
+        }
+
+        .sources {
+
+            margin-top: 15px;
+
+            padding-top: 10px;
+
+            border-top: 1px solid #ccc;
+
+            font-size: 14px;
+        }
+
+        .sources ul {
+
+            margin-top: 8px;
+
+            padding-left: 20px;
+        }
+
+        .sources li {
+
+            margin-bottom: 5px;
+
+            color: #2e7d32;
         }
 
         .input-container {
@@ -160,11 +206,11 @@
             background: #256628;
         }
 
-        .typing {
+        button:disabled {
 
-            font-style: italic;
+            background: #9e9e9e;
 
-            color: gray;
+            cursor: not-allowed;
         }
 
     </style>
@@ -179,11 +225,22 @@
             🌾 AI Farmer Assistant
         </div>
 
-        <div class="chat-box" id="chatbox">
+        <div
+            class="chat-box"
+            id="chatbox"
+        >
 
             <div class="message bot">
-                Hello 👋<br>
-                Ask me anything related to crops, farming, irrigation, fertilizers, or agriculture schemes.
+
+                Hello 👋
+
+                <br><br>
+
+                Ask me anything related to:
+                crops, irrigation, fertilizers,
+                farming methods, government schemes,
+                soil health, or pesticides.
+
             </div>
 
         </div>
@@ -193,11 +250,13 @@
             <input
                 type="text"
                 id="message"
-                placeholder="Type your question..."
+                placeholder="Ask your farming question..."
             >
 
-            <button onclick="sendMessage()">
+            <button id="sendBtn">
+
                 Send
+
             </button>
 
         </div>
@@ -206,18 +265,40 @@
 
 <script>
 
+const sendBtn =
+    document.getElementById("sendBtn");
+
+sendBtn.addEventListener(
+    "click",
+    sendMessage
+);
+
+document.getElementById("message")
+.addEventListener(
+    "keypress",
+    function(event) {
+
+        if(event.key === "Enter") {
+
+            sendMessage();
+        }
+    }
+);
+
 async function sendMessage() {
 
     const inputField =
         document.getElementById("message");
 
-    const message = inputField.value.trim();
+    const message =
+        inputField.value.trim();
 
     if(message === "") return;
 
     const chatbox =
         document.getElementById("chatbox");
 
+    // User Message
     chatbox.innerHTML += `
         <div class="message user">
             ${message}
@@ -226,61 +307,108 @@ async function sendMessage() {
 
     inputField.value = "";
 
+    // Disable Button
+    sendBtn.disabled = true;
+
+    // Typing Indicator
     chatbox.innerHTML += `
-        <div class="message bot typing" id="typing">
+        <div
+            class="message bot typing"
+            id="typing"
+        >
             Thinking...
         </div>
     `;
 
-    chatbox.scrollTop = chatbox.scrollHeight;
+    chatbox.scrollTop =
+        chatbox.scrollHeight;
 
     try {
 
-        const response = await fetch("/chat", {
+        const response = await fetch(
+            "/chat",
+            {
 
-            method: "POST",
+                method: "POST",
 
-            headers: {
-                "Content-Type": "application/json"
-            },
+                headers: {
+                    "Content-Type":
+                    "application/json"
+                },
 
-            body: JSON.stringify({
-                message: message
-            })
-
-        });
+                body: JSON.stringify({
+                    message: message
+                })
+            }
+        );
 
         const data = await response.json();
 
-        document.getElementById("typing").remove();
+        document
+            .getElementById("typing")
+            .remove();
+
+        let sourcesHTML = "";
+
+        if(
+            data.sources &&
+            data.sources.length > 0
+        ) {
+
+            sourcesHTML += `
+                <div class="sources">
+
+                    <strong>Sources:</strong>
+
+                    <ul>
+            `;
+
+            data.sources.forEach(source => {
+
+                sourcesHTML += `
+                    <li>${source}</li>
+                `;
+            });
+
+            sourcesHTML += `
+                    </ul>
+
+                </div>
+            `;
+        }
 
         chatbox.innerHTML += `
             <div class="message bot">
-                ${data.response}
+
+                <div>
+                    ${data.response.replace(/\n/g, "<br>")}
+                </div>
+
+                ${sourcesHTML}
+
             </div>
         `;
 
     } catch(error) {
 
-        document.getElementById("typing").remove();
+        document
+            .getElementById("typing")
+            .remove();
 
         chatbox.innerHTML += `
             <div class="message bot">
+
                 Error connecting to server.
+
             </div>
         `;
     }
 
-    chatbox.scrollTop = chatbox.scrollHeight;
+    sendBtn.disabled = false;
+
+    chatbox.scrollTop =
+        chatbox.scrollHeight;
 }
-
-document.getElementById("message")
-.addEventListener("keypress", function(event) {
-
-    if(event.key === "Enter") {
-        sendMessage();
-    }
-});
 
 </script>
 
