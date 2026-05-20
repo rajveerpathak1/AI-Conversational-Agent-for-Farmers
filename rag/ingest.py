@@ -13,14 +13,17 @@ for file in os.listdir(folder_path):
 
     if file.endswith(".pdf"):
 
-        loader = PyPDFLoader(
-            os.path.join(folder_path, file)
-        )
+        pdf_path = os.path.join(folder_path, file)
+
+        loader = PyPDFLoader(pdf_path)
 
         loaded_docs = loader.load()
 
         for doc in loaded_docs:
-            doc.metadata["source"] = file
+
+            doc.metadata["file_name"] = file
+
+            doc.metadata["page"] = doc.metadata.get("page", 0)
 
         docs.extend(loaded_docs)
 

@@ -10,9 +10,9 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 
 from langchain_groq import ChatGroq
 
-load_dotenv()
-
 from langchain.prompts import PromptTemplate
+
+load_dotenv()
 
 custom_prompt = PromptTemplate(
     input_variables=["context", "question"],
@@ -39,18 +39,19 @@ Answer:
 """
 )
 
-
-
+# Embeddings
 embeddings = HuggingFaceEmbeddings(
     model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
+# Load Vector DB
 vectorstore = FAISS.load_local(
     "vectorstore",
     embeddings,
     allow_dangerous_deserialization=True
 )
 
+# Retriever
 retriever = vectorstore.as_retriever(
     search_type="mmr",
     search_kwargs={
@@ -59,19 +60,21 @@ retriever = vectorstore.as_retriever(
     }
 )
 
+# LLM
 llm = ChatGroq(
     groq_api_key=os.getenv("GROQ_API_KEY"),
     model_name="llama-3.3-70b-versatile",
     temperature=0.2
 )
 
-
+# Memory
 memory = ConversationBufferMemory(
     memory_key="chat_history",
     return_messages=True,
     output_key="answer"
 )
 
+# QA Chain
 qa_chain = ConversationalRetrievalChain.from_llm(
     llm=llm,
     retriever=retriever,
@@ -92,14 +95,29 @@ def ask_question(query):
 
     sources = []
 
+    seen = set()
+
     for doc in response["source_documents"]:
 
-        source = doc.metadata.get("source", "Unknown")
-        page = doc.metadata.get("page", "N/A")
+        file_name = doc.metadata.get(
+            "file_name",
+            "Unknown"
+        )
 
-        sources.append(f"{source} (Page {page})")
+        page = doc.metadata.get(
+            "page",
+            0
+        )
+
+        citation = f"{file_name} (Page {page + 1})"
+
+        if citation not in seen:
+
+            seen.add(citation)
+
+            sources.append(citation)
 
     return {
         "answer": answer,
-        "sources": list(set(sources))
+        "sources": sources
     }
