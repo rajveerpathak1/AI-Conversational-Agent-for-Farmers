@@ -1,46 +1,65 @@
 import os
-
 from dotenv import load_dotenv
 
-from langchain.memory import ConversationBufferMemory
-from langchain.chains import ConversationalRetrievalChain
+from langchain.prompts import PromptTemplate
+from langchain.memory import ConversationBufferWindowMemory
 
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 from langchain_groq import ChatGroq
 
-from langchain.prompts import PromptTemplate
+from langchain.chains import ConversationalRetrievalChain
+
+
+# =========================================================
+# LOAD ENV VARIABLES
+# =========================================================
 
 load_dotenv()
+
+
+# =========================================================
+# CONFIG
+# =========================================================
+
+VECTORSTORE_PATH = "vectorstore"
+
+EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"
+
+LLM_MODEL = "llama-3.3-70b-versatile"
+
+TEMPERATURE = 0.2
+
+TOP_K = 5
+FETCH_K = 20
+
+USE_GPU = False
+
+
+# =========================================================
+# CUSTOM PROMPT
+# =========================================================
 
 custom_prompt = PromptTemplate(
     input_variables=["context", "question"],
     template="""
-You are an intelligent AI agriculture assistant for Haryana farmers.
+You are an expert AI agriculture assistant helping farmers in Haryana, India.
 
-Answer ONLY using the provided context.
+Your job is to answer ONLY using the provided context.
 
-Rules:
-- First provide a concise practical answer.
-- Then provide detailed explanation if needed.
-- Keep answers conversational and farmer-friendly.
-- Mention when information is uncertain or incomplete.
-- Prefer region-specific and farmer-specific recommendations.
-- Prioritize practical schemes over generic explanations.
-- Focus on actionable farmer benefits.
-- Organize responses with headings and subheadings.
-- Explain concepts in a structured educational way.
-- Use examples where possible.
-- Summarize retrieved information intelligently.
-- Avoid simply listing raw extracted points.
-- If asked for details, provide:
-  • definition
-  • uses
-  • benefits
-  • drawbacks
-  • environmental impact
-  • safety precautions
+Guidelines:
+- Give practical and actionable answers first.
+- Use simple conversational language.
+- Be educational but concise.
+- Organize answers using headings and bullet points.
+- Mention risks, precautions, and limitations when relevant.
+- Prefer Haryana-specific farming advice when available.
+- If the context is incomplete, clearly say:
+  "I could not find enough information in the provided documents."
+
+Do NOT hallucinate.
+Do NOT invent government schemes, prices, or recommendations.
 
 Context:
 {context}
@@ -52,59 +71,110 @@ Answer:
 """
 )
 
-# Embeddings
+
+# =========================================================
+# EMBEDDINGS
+# =========================================================
+
+device = "cuda" if USE_GPU else "cpu"
+
 embeddings = HuggingFaceEmbeddings(
-    model_name="sentence-transformers/all-MiniLM-L6-v2"
+    model_name=EMBEDDING_MODEL,
+    model_kwargs={
+        "device": device
+    },
+    encode_kwargs={
+        "normalize_embeddings": True
+    }
 )
 
-# Load Vector DB
+
+# =========================================================
+# LOAD VECTOR DATABASE
+# =========================================================
+
 vectorstore = FAISS.load_local(
-    "vectorstore",
+    VECTORSTORE_PATH,
     embeddings,
     allow_dangerous_deserialization=True
 )
 
-# Retriever
+
+# =========================================================
+# RETRIEVER
+# =========================================================
+
 retriever = vectorstore.as_retriever(
     search_type="mmr",
     search_kwargs={
-        "k": 6,
-        "fetch_k": 20
+        "k": TOP_K,
+        "fetch_k": FETCH_K
     }
 )
 
+
+# =========================================================
 # LLM
+# =========================================================
+
 llm = ChatGroq(
     groq_api_key=os.getenv("GROQ_API_KEY"),
-    model_name="llama-3.3-70b-versatile",
-    temperature=0.2
+    model_name=LLM_MODEL,
+    temperature=TEMPERATURE
 )
 
-# Memory
-memory = ConversationBufferMemory(
+
+# =========================================================
+# MEMORY
+# =========================================================
+
+memory = ConversationBufferWindowMemory(
     memory_key="chat_history",
     return_messages=True,
-    output_key="answer"
+    output_key="answer",
+    k=4
 )
 
-# QA Chain
+# Keeps only recent conversation
+# Prevents token explosion
+
+
+# =========================================================
+# QA CHAIN
+# =========================================================
+
 qa_chain = ConversationalRetrievalChain.from_llm(
     llm=llm,
+
     retriever=retriever,
+
     memory=memory,
+
     combine_docs_chain_kwargs={
         "prompt": custom_prompt
     },
-    return_source_documents=True
+
+    return_source_documents=True,
+
+    verbose=False
 )
 
-def ask_question(query):
+
+# =========================================================
+# ASK QUESTION FUNCTION
+# =========================================================
+
+def ask_question(query: str):
 
     response = qa_chain.invoke({
         "question": query
     })
 
     answer = response["answer"]
+
+    # =====================================================
+    # FORMAT SOURCES
+    # =====================================================
 
     sources = []
 
@@ -122,7 +192,7 @@ def ask_question(query):
             0
         )
 
-        citation = f"{file_name} (Page {page + 1})"
+        citation = f"{file_name} (Page {page})"
 
         if citation not in seen:
 
@@ -131,6 +201,34 @@ def ask_question(query):
             sources.append(citation)
 
     return {
-        "answer": answer,
+        "answer": answer.strip(),
         "sources": sources
     }
+
+
+# =========================================================
+# CLI TEST LOOP
+# =========================================================
+
+if __name__ == "__main__":
+
+    print("\n🌾 Haryana Agriculture AI Assistant")
+    print("Type 'exit' to quit\n")
+
+    while True:
+
+        query = input("You: ")
+
+        if query.lower() == "exit":
+            break
+
+        result = ask_question(query)
+
+        print("\nAssistant:\n")
+        print(result["answer"])
+
+        print("\nSources:")
+        for src in result["sources"]:
+            print(f"- {src}")
+
+        print("\n" + "=" * 60 + "\n")
